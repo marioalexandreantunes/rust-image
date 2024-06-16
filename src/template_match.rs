@@ -1,13 +1,11 @@
-
-use image::{ImageBuffer, Rgb, Rgba, DynamicImage, GenericImageView};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Rgb, Rgba};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use rayon::prelude::*;
-use std::{fs, io};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-
+use std::{fs, io};
 
 pub const TOLERANCE: u8 = 30; // Adjust tolerance level as needed
 pub const PERCENTAGE: usize = 25; // Adjust image PERCENTAGE to be ok as needed
@@ -25,7 +23,7 @@ pub const PERCENTAGE: usize = 25; // Adjust image PERCENTAGE to be ok as needed
 pub fn get_png_files_from_path<P: AsRef<Path>>(
     path: P,
 ) -> io::Result<Vec<(String, ImageBuffer<Rgba<u8>, Vec<u8>>)>> {
-    // this final vector needs to have the 
+    // this final vector needs to have the
     let mut image_buffers: Vec<(String, ImageBuffer<Rgba<u8>, Vec<u8>>)> = Vec::new();
     let mut png_files: Vec<ImageBuffer<Rgba<u8>, Vec<u8>>> = Vec::new();
     let entries = fs::read_dir(path)?;
@@ -38,10 +36,16 @@ pub fn get_png_files_from_path<P: AsRef<Path>>(
             if let Some(extension) = path.extension() {
                 if extension == "png" {
                     // need to return ImageBuffer<Rgba<u8> and path and a new &str
-                    let img: ImageBuffer<Rgba<u8>, Vec<u8>> =
-                        image::open(path.clone()).expect("Failed to load image").to_rgba8();
+                    let img: ImageBuffer<Rgba<u8>, Vec<u8>> = image::open(path.clone())
+                        .expect("Failed to load image")
+                        .to_rgba8();
                     // TODO : in push i need the image name and path
-                    let file_name = path.file_name().unwrap().to_string_lossy().into_owned().replace(".png", "");
+                    let file_name = path
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned()
+                        .replace(".png", "");
                     png_files.push(img.clone());
                     image_buffers.push((file_name, img));
                 }
@@ -56,7 +60,6 @@ pub fn get_png_files_from_path<P: AsRef<Path>>(
     Ok(image_buffers)
 }
 
-
 /// Proceeds with a template match, using parallelism.
 ///
 /// # Arguments
@@ -69,7 +72,11 @@ pub fn get_png_files_from_path<P: AsRef<Path>>(
 ///
 /// Vec<Vec<(u32, u32)>> - a vector with vectors with all positions matched.
 ///
-pub fn get_template_matches(larger_image: &str, template_path: &str, debug: bool) -> Vec<Vec<(u32, u32)>>{
+pub fn get_template_matches(
+    larger_image: &str,
+    template_path: &str,
+    debug: bool,
+) -> Vec<Vec<(u32, u32)>> {
     //check if the paths exist
     let larger_image_path: &Path = Path::new(larger_image);
     let template_path: &Path = Path::new(template_path);
@@ -98,7 +105,7 @@ pub fn get_template_matches(larger_image: &str, template_path: &str, debug: bool
                 tolerance = parts[1].parse().unwrap_or(TOLERANCE);
                 percentage = parts[2].parse().unwrap_or(PERCENTAGE);
             }
-            
+
             // image buffer
             let temp: ImageBuffer<Rgba<u8>, Vec<u8>> = template.1;
             s.spawn(move |_| {
@@ -234,13 +241,20 @@ pub fn debug_image(results: Vec<Vec<(u32, u32)>>, large_image_save: &str) {
     }
 }
 
-
 // TODO , make tests this is based in AFORGE ExhaustiveTemplateMatching.cs
-pub fn exaust_temlate_image(image: &DynamicImage, template: &DynamicImage, threshold: i32, max_diff: i32) -> Vec<Vec<i32>> {
+pub fn exaust_temlate_image(
+    image: &DynamicImage,
+    template: &DynamicImage,
+    threshold: i32,
+    max_diff: i32,
+) -> Vec<Vec<i32>> {
     let (image_width, image_height) = image.dimensions();
     let (template_width, template_height) = template.dimensions();
 
-    let mut map = vec![vec![0; (image_width - template_width + 1) as usize]; (image_height - template_height + 1) as usize];
+    let mut map = vec![
+        vec![0; (image_width - template_width + 1) as usize];
+        (image_height - template_height + 1) as usize
+    ];
 
     let image_pixels = image.as_bytes();
     let template_pixels = template.as_bytes();
@@ -257,7 +271,8 @@ pub fn exaust_temlate_image(image: &DynamicImage, template: &DynamicImage, thres
                     let template_idx = (i * template_width + j) as usize * pixel_size;
 
                     for k in 0..pixel_size {
-                        let d = (image_pixels[image_idx + k] as i32) - (template_pixels[template_idx + k] as i32);
+                        let d = (image_pixels[image_idx + k] as i32)
+                            - (template_pixels[template_idx + k] as i32);
                         if d > 0 {
                             dif += d;
                         } else {
