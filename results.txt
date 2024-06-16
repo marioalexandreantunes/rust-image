@@ -10,6 +10,21 @@ Template 3 found at coordinates: [(401, 126), (482, 135), (511, 156), (320, 170)
 debug_image drawing 3 templates:
 Result image with markers saved to: tests/result_image.png
 
+## with a reduced zone just to cob+ver the village polygon: 
+windows to search is from x:100, y:100 to x1:760 y1:544
+elixir_30_25 - 19x19
+gold_30_30 - 16x16
+dark_20_20 - 18x16
+dark_20_20 took: 787.08ms
+gold_30_30 took: 787.28ms
+elixir_30_25 took: 787.76ms
+Time taken to match templates: 0.790268 seconds
+Template 1 found at coordinates: [(569, 204), (344, 295), (569, 343)]
+Template 2 found at coordinates: [(454, 119), (344, 254), (541, 367), (373, 397), (483, 409), (402, 419), (454, 432)]
+Template 3 found at coordinates: [(401, 126), (482, 135), (511, 156), (320, 170), (540, 179), (268, 270), (511, 382)]
+debug_image drawing 3 templates:
+Result image with markers saved to: tests/result_image.png
+
 
 # my macbook M1 machine:
 ## all source image: 
