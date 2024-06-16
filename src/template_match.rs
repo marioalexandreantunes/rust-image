@@ -1,4 +1,4 @@
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgb, Rgba};
+use image::{ImageBuffer, Rgb, Rgba};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use rayon::prelude::*;
@@ -76,6 +76,7 @@ pub fn get_template_matches(
     larger_image: &str,
     template_path: &str,
     debug: bool,
+    search_zone : Rect
 ) -> Vec<Vec<(u32, u32)>> {
     //check if the paths exist
     let larger_image_path: &Path = Path::new(larger_image);
@@ -84,17 +85,22 @@ pub fn get_template_matches(
         panic!("One of the paths does not exist");
     }
 
-    let start_time: Instant = Instant::now();
-
     let templates: Result<Vec<(String, ImageBuffer<Rgba<u8>, Vec<u8>>)>, io::Error> =
         get_png_files_from_path(template_path);
+
+    // a rectangle to rduce serach zone
+    let search_zone = search_zone;
+
 
     // Init the results thread-safe var
     let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::new(Mutex::new(Vec::new()));
 
+    let start_time: Instant = Instant::now();
+
     // Use rayon::scope to process files in parallel
     rayon::scope(|s: &rayon::Scope| {
         for template in templates.unwrap() {
+            let start_time_loop: Instant = Instant::now();
             let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::clone(&results);
             // TODO : get from name the tolerance and percentage
             let mut tolerance: u8 = TOLERANCE;
@@ -114,9 +120,13 @@ pub fn get_template_matches(
                         .expect("Failed to load image")
                         .to_rgba8();
                 let result: Vec<(u32, u32)> =
-                    template_match(&large_image, &temp, tolerance.clone(), percentage).clone();
+                    template_match(&large_image, &temp, tolerance.clone(), percentage.clone(), search_zone.clone());
                 let mut results: std::sync::MutexGuard<Vec<Vec<(u32, u32)>>> =
                     results.lock().unwrap();
+                let elapsed_loop: std::time::Duration = start_time_loop.elapsed();
+                if debug {
+                    println!("{} took: {:.2?}", name, elapsed_loop);
+                }
                 results.push(result);
             });
         }
@@ -160,15 +170,23 @@ fn template_match(
     subimage: &ImageBuffer<Rgba<u8>, Vec<u8>>,
     tolerance: u8,
     percentage: usize,
+    search_zone : Rect
 ) -> Vec<(u32, u32)> {
     let (large_width, large_height): (u32, u32) = larger_image.dimensions();
     let (sub_width, sub_height) = subimage.dimensions();
     let pixel_count: usize = (sub_width * sub_height) as usize;
     let tolerance_threshold: usize = pixel_count * percentage / 100;
 
+    if large_width < search_zone.width() {
+        panic!("Search zone width {} is larger than the larger image width {}", search_zone.width(), large_width);
+    }
+    if large_height < search_zone.height() {
+        panic!("Search zone height {} is larger than the larger image height {}", search_zone.height(), large_height);
+    }
+
     // Create a vector of possible top-left corner positions to be checked
-    let positions: Vec<(u32, u32)> = (0..=large_height - sub_height)
-        .flat_map(|y| (0..=large_width - sub_width).map(move |x| (x, y)))
+    let positions: Vec<(u32, u32)> = (search_zone.left() as u32..=search_zone.height() as u32 - sub_height)
+        .flat_map(|y| (search_zone.top() as u32..=search_zone.width() - sub_width).map(move |x| (x, y)))
         .collect();
 
     // Use parallel processing to speed up the search
@@ -239,55 +257,4 @@ pub fn debug_image(results: Vec<Vec<(u32, u32)>>, large_image_save: &str) {
             .expect("Failed to save image");
         println!("Result image with markers saved to: {}", output_path);
     }
-}
-
-// TODO , make tests this is based in AFORGE ExhaustiveTemplateMatching.cs
-pub fn exaust_temlate_image(
-    image: &DynamicImage,
-    template: &DynamicImage,
-    threshold: i32,
-    max_diff: i32,
-) -> Vec<Vec<i32>> {
-    let (image_width, image_height) = image.dimensions();
-    let (template_width, template_height) = template.dimensions();
-
-    let mut map = vec![
-        vec![0; (image_width - template_width + 1) as usize];
-        (image_height - template_height + 1) as usize
-    ];
-
-    let image_pixels = image.as_bytes();
-    let template_pixels = template.as_bytes();
-
-    let pixel_size = image.color().channel_count() as usize;
-
-    for y in 0..image_height - template_height + 1 {
-        for x in 0..image_width - template_width + 1 {
-            let mut dif = 0;
-
-            for i in 0..template_height {
-                for j in 0..template_width {
-                    let image_idx = ((y + i) * image_width + (x + j)) as usize * pixel_size;
-                    let template_idx = (i * template_width + j) as usize * pixel_size;
-
-                    for k in 0..pixel_size {
-                        let d = (image_pixels[image_idx + k] as i32)
-                            - (template_pixels[template_idx + k] as i32);
-                        if d > 0 {
-                            dif += d;
-                        } else {
-                            dif -= d;
-                        }
-                    }
-                }
-            }
-
-            let sim = max_diff - dif;
-            if sim >= threshold {
-                map[y as usize][x as usize] = sim;
-            }
-        }
-    }
-
-    map
 }
