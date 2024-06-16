@@ -124,7 +124,7 @@ pub fn get_template_matches(larger_image: &str, template_path: &str, debug: bool
     // print results  id debug
     if debug == true {
         println!(
-            "Time taken to load templates: {:.6} seconds",
+            "Time taken to match templates: {:.6} seconds",
             elapsed.as_secs_f64()
         );
         for (idx, result) in debug_results.iter().enumerate() {
