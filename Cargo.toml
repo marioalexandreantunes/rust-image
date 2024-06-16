@@ -1,0 +1,12 @@
+[package]
+name = "rust-image"
+version = "0.1.0"
+edition = "2021"
+
+[env]
+RUST_BACKTRACE = "1"
+
+[dependencies]
+image = "0.25.1"
+imageproc = "0.25"
+rayon = "1.5"
