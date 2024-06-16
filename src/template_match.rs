@@ -1,13 +1,13 @@
-use image::{ImageBuffer, Rgb, Rgba};
+
+use image::{ImageBuffer, Rgb, Rgba, DynamicImage, GenericImageView};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use rayon::prelude::*;
-use std::fs;
-use std::io;
+use std::{fs, io};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
 
 pub const TOLERANCE: u8 = 30; // Adjust tolerance level as needed
 pub const PERCENTAGE: usize = 25; // Adjust image PERCENTAGE to be ok as needed
@@ -232,4 +232,47 @@ pub fn debug_image(results: Vec<Vec<(u32, u32)>>, large_image_save: &str) {
             .expect("Failed to save image");
         println!("Result image with markers saved to: {}", output_path);
     }
+}
+
+
+// TODO , make tests this is based in AFORGE ExhaustiveTemplateMatching.cs
+pub fn exaust_temlate_image(image: &DynamicImage, template: &DynamicImage, threshold: i32, max_diff: i32) -> Vec<Vec<i32>> {
+    let (image_width, image_height) = image.dimensions();
+    let (template_width, template_height) = template.dimensions();
+
+    let mut map = vec![vec![0; (image_width - template_width + 1) as usize]; (image_height - template_height + 1) as usize];
+
+    let image_pixels = image.as_bytes();
+    let template_pixels = template.as_bytes();
+
+    let pixel_size = image.color().channel_count() as usize;
+
+    for y in 0..image_height - template_height + 1 {
+        for x in 0..image_width - template_width + 1 {
+            let mut dif = 0;
+
+            for i in 0..template_height {
+                for j in 0..template_width {
+                    let image_idx = ((y + i) * image_width + (x + j)) as usize * pixel_size;
+                    let template_idx = (i * template_width + j) as usize * pixel_size;
+
+                    for k in 0..pixel_size {
+                        let d = (image_pixels[image_idx + k] as i32) - (template_pixels[template_idx + k] as i32);
+                        if d > 0 {
+                            dif += d;
+                        } else {
+                            dif -= d;
+                        }
+                    }
+                }
+            }
+
+            let sim = max_diff - dif;
+            if sim >= threshold {
+                map[y as usize][x as usize] = sim;
+            }
+        }
+    }
+
+    map
 }
