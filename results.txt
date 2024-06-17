@@ -10,18 +10,18 @@ Template 3 found at coordinates: [(401, 126), (482, 135), (511, 156), (320, 170)
 debug_image drawing 3 templates:
 Result image with markers saved to: tests/result_image.png
 
-## with a reduced zone just to cob+ver the village polygon: 
+## with a reduced zone just to cover the village polygon: 
 windows to search is from x:100, y:100 to x1:760 y1:544
 elixir_30_25 - 19x19
 gold_30_30 - 16x16
 dark_20_20 - 18x16
-dark_20_20 took: 787.08ms
-gold_30_30 took: 787.28ms
-elixir_30_25 took: 787.76ms
-Time taken to match templates: 0.790268 seconds
-Template 1 found at coordinates: [(569, 204), (344, 295), (569, 343)]
-Template 2 found at coordinates: [(454, 119), (344, 254), (541, 367), (373, 397), (483, 409), (402, 419), (454, 432)]
-Template 3 found at coordinates: [(401, 126), (482, 135), (511, 156), (320, 170), (540, 179), (268, 270), (511, 382)]
+dark took: 761.25ms
+elixir took: 761.51ms
+gold took: 787.98ms
+Time taken to match templates: 0.789976 seconds
+Template 1 found at coordinates: [(569, 204, "dark"), (344, 295, "dark"), (569, 343, "dark")]
+Template 2 found at coordinates: [(401, 126, "elixir"), (482, 135, "elixir"), (511, 156, "elixir"), (320, 170, "elixir"), (540, 179, "elixir"), (268, 270, "elixir"), (511, 382, "elixir")]
+Template 3 found at coordinates: [(454, 119, "gold"), (344, 254, "gold"), (541, 367, "gold"), (373, 397, "gold"), (483, 409, "gold"), (402, 419, "gold"), (454, 432, "gold")]
 debug_image drawing 3 templates:
 Result image with markers saved to: tests/result_image.png
 
@@ -39,7 +39,7 @@ debug_image drawing 3 templates:
 Result image with markers saved to: tests/result_image.png
 
 # my macbook M1 machine :
-## with a reduced zone just to cob+ver the village polygon: 
+## with a reduced zone just to cover the village polygon: 
 windows to search is from x100, y100 to x1:760 y1:544
 gold_30_30 - 16x16
 elixir_30_25 - 19x19
@@ -69,7 +69,7 @@ Template 3 found at coordinates: [(401, 126), (482, 135), (511, 156), (320, 170)
 debug_image drawing 3 templates:
 Result image with markers saved to: tests/result_image.png
 
-## with a reduced zone just to cob+ver the village polygon: 
+## with a reduced zone just to cover the village polygon: 
 windows to search is from x:100, y:100 to x1:760 y1:544
 dark_20_20 - 18x16
 elixir_30_25 - 19x19
