@@ -287,7 +287,7 @@ pub fn debug_image(results: Vec<Vec<(u32, u32, String)>>, large_image_save: &str
                 let rect = Rect::at(x1, y1).of_size(20, 20);
                 
                 let white = Rgb([255u8, 255u8, 255u8]);
-                let font = FontRef::try_from_slice(include_bytes!("/home/promac/Desktop/Repositories/rust-image/DejaVuSans.ttf")).unwrap();
+                let font = FontRef::try_from_slice(include_bytes!("../tests/DejaVuSans.ttf")).unwrap();
                 let height = 12.4;
                 let scale = PxScale {
                     x: height * 2.0,
