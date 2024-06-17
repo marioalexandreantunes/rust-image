@@ -2,7 +2,7 @@ use image::{ImageBuffer, Rgb, Rgba};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
 use rayon::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, io};
@@ -20,46 +20,41 @@ pub const PERCENTAGE: usize = 25; // Adjust image PERCENTAGE to be ok as needed
 ///
 /// io::Result<Vec<ImageBuffer<Rgba<u8>, Vec<u8>>>> to use in tamplate_match
 ///
-pub fn get_png_files_from_path<P: AsRef<Path>>(
-    path: P,
+fn get_png_files_from_path(
+    path: &str,
 ) -> io::Result<Vec<(String, ImageBuffer<Rgba<u8>, Vec<u8>>)>> {
-    // this final vector needs to have the
-    let mut image_buffers: Vec<(String, ImageBuffer<Rgba<u8>, Vec<u8>>)> = Vec::new();
-    let mut png_files: Vec<ImageBuffer<Rgba<u8>, Vec<u8>>> = Vec::new();
-    let entries = fs::read_dir(path)?;
+    let start_time: Instant = Instant::now();
 
-    for entry in entries {
-        let entry = entry?;
-        let path: PathBuf = entry.path();
+    let paths = fs::read_dir(path)?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "png"))
+        .map(|entry| entry.path())
+        .collect::<Vec<_>>();
 
-        if path.is_file() {
-            if let Some(extension) = path.extension() {
-                if extension == "png" {
-                    // need to return ImageBuffer<Rgba<u8> and path and a new &str
-                    let img: ImageBuffer<Rgba<u8>, Vec<u8>> = image::open(path.clone())
-                        .expect("Failed to load image")
-                        .to_rgba8();
-                    // TODO : in push i need the image name and path
-                    let file_name = path
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .into_owned()
-                        .replace(".png", "");
-                    png_files.push(img.clone());
-                    image_buffers.push((file_name, img));
-                }
-            }
-        }
-    }
-    // DISPLAY THE image_buffers
-    for (file_name, img) in image_buffers.clone() {
-        let (width, height) = img.dimensions();
-        println!("{} - {}x{}", file_name, width, height);
-    }
+    let image_buffers: Vec<(String, ImageBuffer<Rgba<u8>, Vec<u8>>)> = paths
+        .par_iter()
+        .map(|path| {
+            let img: ImageBuffer<Rgba<u8>, Vec<u8>> = image::open(path.clone())
+                .expect("Failed to load image")
+                .to_rgba8();
+            let file_name: String = path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+                .replace(".png", "");
+            Ok::<(String, ImageBuffer<Rgba<u8>, Vec<u8>>), io::Error>((file_name, img))
+        })
+        .collect::<Result<Vec<(String, ImageBuffer<Rgba<u8>, Vec<u8>>)>, _>>()?;
+
+    let elapsed: std::time::Duration = start_time.elapsed();
+    println!(
+        "Time taken to load templates: {:.4} seconds",
+        elapsed.as_secs_f64()
+    );
+    
     Ok(image_buffers)
 }
-
 /// Proceeds with a template match, using parallelism.
 ///
 /// # Arguments
@@ -76,12 +71,12 @@ pub fn get_template_matches(
     larger_image: &str,
     template_path: &str,
     debug: bool,
-    search_zone : Rect
+    search_zone: Rect,
 ) -> Vec<Vec<(u32, u32)>> {
     //check if the paths exist
     let larger_image_path: &Path = Path::new(larger_image);
-    let template_path: &Path = Path::new(template_path);
-    if !larger_image_path.exists() || !template_path.exists() {
+    let template_path1: &Path = Path::new(template_path);
+    if !larger_image_path.exists() || !template_path1.exists() {
         panic!("One of the paths does not exist");
     }
 
@@ -90,7 +85,6 @@ pub fn get_template_matches(
 
     // a rectangle to rduce serach zone
     let search_zone = search_zone;
-
 
     // Init the results thread-safe var
     let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::new(Mutex::new(Vec::new()));
@@ -119,8 +113,13 @@ pub fn get_template_matches(
                     image::open(larger_image)
                         .expect("Failed to load image")
                         .to_rgba8();
-                let result: Vec<(u32, u32)> =
-                    template_match(&large_image, &temp, tolerance.clone(), percentage.clone(), search_zone.clone());
+                let result: Vec<(u32, u32)> = template_match(
+                    &large_image,
+                    &temp,
+                    tolerance.clone(),
+                    percentage.clone(),
+                    search_zone.clone(),
+                );
                 let mut results: std::sync::MutexGuard<Vec<Vec<(u32, u32)>>> =
                     results.lock().unwrap();
                 let elapsed_loop: std::time::Duration = start_time_loop.elapsed();
@@ -141,7 +140,7 @@ pub fn get_template_matches(
     // print results  id debug
     if debug == true {
         println!(
-            "Time taken to match templates: {:.6} seconds",
+            "Time taken to match templates: {:.4} seconds",
             elapsed.as_secs_f64()
         );
         for (idx, result) in debug_results.iter().enumerate() {
@@ -170,7 +169,7 @@ fn template_match(
     subimage: &ImageBuffer<Rgba<u8>, Vec<u8>>,
     tolerance: u8,
     percentage: usize,
-    search_zone : Rect
+    search_zone: Rect,
 ) -> Vec<(u32, u32)> {
     let (large_width, large_height): (u32, u32) = larger_image.dimensions();
     let (sub_width, sub_height) = subimage.dimensions();
@@ -178,15 +177,26 @@ fn template_match(
     let tolerance_threshold: usize = pixel_count * percentage / 100;
 
     if large_width < search_zone.width() {
-        panic!("Search zone width {} is larger than the larger image width {}", search_zone.width(), large_width);
+        panic!(
+            "Search zone width {} is larger than the larger image width {}",
+            search_zone.width(),
+            large_width
+        );
     }
     if large_height < search_zone.height() {
-        panic!("Search zone height {} is larger than the larger image height {}", search_zone.height(), large_height);
+        panic!(
+            "Search zone height {} is larger than the larger image height {}",
+            search_zone.height(),
+            large_height
+        );
     }
 
     // Create a vector of possible top-left corner positions to be checked
-    let positions: Vec<(u32, u32)> = (search_zone.left() as u32..=search_zone.height() as u32 - sub_height)
-        .flat_map(|y| (search_zone.top() as u32..=search_zone.width() - sub_width).map(move |x| (x, y)))
+    let positions: Vec<(u32, u32)> = (search_zone.left() as u32
+        ..=search_zone.height() as u32 - sub_height)
+        .flat_map(|y| {
+            (search_zone.top() as u32..=search_zone.width() - sub_width).map(move |x| (x, y))
+        })
         .collect();
 
     // Use parallel processing to speed up the search
