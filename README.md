@@ -1,7 +1,7 @@
 # Template Matching in Rust
 
 This repository contains a Rust implementation of a template matching algorithm to locate small images within a larger image. Template matching is a technique in digital image processing for finding small parts of an image that match a template image.
-The goal is to be as fast as possible using parallelism and several small images within a larger image, perfect to use in bots.
+The goal is to be as fast as possible using parallelism and several small images within a larger image, perfect to use in bots. This is my first project in Rust, a language I only started a few weeks ago.
 
 ## Features
 
