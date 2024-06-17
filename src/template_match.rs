@@ -205,6 +205,24 @@ fn template_match(
         );
     }
 
+    // check if the search zone is bigger than template image
+    if search_zone.width() < sub_width {
+        panic!(
+            "template width {} is larger than the search zonewidth {}",
+            sub_width,
+            search_zone.width()
+        );
+    }
+    if search_zone.height() < sub_height {
+        panic!(
+            "template height {} is larger than the search zone height {}",
+            sub_height,
+            search_zone.height()
+        );
+    }
+
+    // check if the larger_image is bigger than subimage
+
     // Create a vector of possible top-left corner positions to be checked
     let positions: Vec<(u32, u32)> = (search_zone.left() as u32
         ..=search_zone.height() as u32 - sub_height)
