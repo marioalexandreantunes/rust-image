@@ -11,9 +11,13 @@ fn main() {
     let img: &str = "tests/large_image.png";
     let temp: &str = "tests/templates";
     // rectangle imageproc::rect::Rect fron x 100 y 100 abd width less 100
-    let width = 860 - 100;
-    let height = 644 - 100;
-    let search_zone: imageproc::rect::Rect = Rect::at(100, 100).of_size(width, height);
+    //let width = 860 - 100;
+    //let height = 644 - 100;
+    //let search_zone: imageproc::rect::Rect = Rect::at(100, 100).of_size(width, height);
+
+    // All image 
+    let search_zone: imageproc::rect::Rect = Rect::at(0, 0).of_size(860, 644);
+    
     println!(
         "windows to search is from x:{}, y:{} to x1:{} y1:{}",
         search_zone.left(), search_zone.top(), search_zone.width(), search_zone.height()
