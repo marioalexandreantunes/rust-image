@@ -71,14 +71,14 @@ pub fn get_png_files_from_path<P: AsRef<Path>>(
 ///
 /// # Returns
 ///
-/// Vec<Vec<(u32, u32)>> - a vector with vectors with all positions matched.
+/// Vec<Vec<(u32, u32, String)>> - a vector with vectors with x,y + template name used
 ///
 pub fn get_template_matches(
     larger_image: &str,
     template_path: &str,
     debug: bool,
     search_zone: Rect,
-) -> Vec<Vec<(u32, u32)>> {
+) -> Vec<Vec<(u32, u32, String)>> {
     //check if the paths exist
     let larger_image_path: &Path = Path::new(larger_image);
     let template_path: &Path = Path::new(template_path);
@@ -93,7 +93,7 @@ pub fn get_template_matches(
     let search_zone = search_zone;
 
     // Init the results thread-safe var
-    let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::new(Mutex::new(Vec::new()));
+    let results: Arc<Mutex<Vec<Vec<(u32, u32, String)>>>> = Arc::new(Mutex::new(Vec::new()));
 
     let start_time: Instant = Instant::now();
 
@@ -101,13 +101,16 @@ pub fn get_template_matches(
     rayon::scope(|s: &rayon::Scope| {
         for template in templates.unwrap() {
             let start_time_loop: Instant = Instant::now();
-            let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::clone(&results);
+            let results: Arc<Mutex<Vec<Vec<(u32, u32, String)>>>> = Arc::clone(&results);
             // TODO : get from name the tolerance and percentage
             let mut tolerance: u8 = TOLERANCE;
             let mut percentage: usize = PERCENTAGE;
+            let mut template_name: String = "".to_string();
+
             let name: String = template.0;
             let parts: Vec<&str> = name.split('_').collect();
             if parts.len() >= 3 {
+                template_name = parts[0].to_string();
                 tolerance = parts[1].parse().unwrap_or(TOLERANCE);
                 percentage = parts[2].parse().unwrap_or(PERCENTAGE);
             }
@@ -126,20 +129,25 @@ pub fn get_template_matches(
                     percentage.clone(),
                     search_zone.clone(),
                 );
-                let mut results: std::sync::MutexGuard<Vec<Vec<(u32, u32)>>> =
+                let mut results: std::sync::MutexGuard<Vec<Vec<(u32, u32, String)>>> =
                     results.lock().unwrap();
                 let elapsed_loop: std::time::Duration = start_time_loop.elapsed();
                 if debug {
-                    println!("{} took: {:.2?}", name, elapsed_loop);
+                    println!("{} took: {:.2?}", template_name, elapsed_loop);
                 }
-                results.push(result);
+                // Convert each point to a tuple with a String
+                let points_with_string: Vec<(u32, u32, String)> = result
+                    .into_iter()
+                    .map(|(x, y)| (x, y, template_name.to_string()))
+                    .collect();
+                results.push(points_with_string);
             });
         }
     });
 
     // get the results
-    let debug_results: Vec<Vec<(u32, u32)>> = results.lock().unwrap().clone();
-    let return_results: Vec<Vec<(u32, u32)>> = results.lock().unwrap().clone();
+    let debug_results: Vec<Vec<(u32, u32, String)>> = results.lock().unwrap().clone();
+    let return_results: Vec<Vec<(u32, u32, String)>> = results.lock().unwrap().clone();
 
     let elapsed: std::time::Duration = start_time.elapsed();
 
@@ -246,7 +254,7 @@ fn pixels_match_with_tolerance(pixel1: &Rgba<u8>, pixel2: &Rgba<u8>, tolerance: 
 /// * 'results' - Vec<Vec<(u32, u32)>> from parallel template_match.
 /// * 'large_image_save' - path from source image
 ///
-pub fn debug_image(results: Vec<Vec<(u32, u32)>>, large_image_save: &str) {
+pub fn debug_image(results: Vec<Vec<(u32, u32, String)>>, large_image_save: &str) {
     if results.is_empty() {
         println!("Subimage not found in larger image.");
     } else {
@@ -257,8 +265,8 @@ pub fn debug_image(results: Vec<Vec<(u32, u32)>>, large_image_save: &str) {
 
         for (_outer_index, inner_vec) in results.iter().enumerate() {
             //println!("Subimage #{} found at positions:", outer_index + 1);
-            for (x, y) in inner_vec {
-                //println!("({}, {})", x, y);
+            for (x, y, _name) in inner_vec {
+                //println!("{} at ({}, {})", name, x, y);
                 let black = Rgb([0u8, 0u8, 0u8]);
                 let x1: i32 = *x as i32;
                 let y1: i32 = *y as i32;

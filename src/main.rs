@@ -31,13 +31,13 @@ fn main() {
         search_zone.height()
     );
 
-    let results: Vec<Vec<(u32, u32)>> = get_template_matches(img, temp, debug, search_zone);
+    let results: Vec<Vec<(u32, u32, String)>> = get_template_matches(img, temp, debug, search_zone);
     // print each result
     if !debug {
         for (i, result) in results.iter().enumerate() {
             println!("Template {} matches:", i);
-            for (x, y) in result {
-                println!("({}, {})", x, y);
+            for (x, y, name) in result {
+                println!("{} at ({}, {})", name, x, y);
             }
         }
     }
