@@ -9,6 +9,7 @@ use std::{fs, io};
 
 pub const TOLERANCE: u8 = 30; // Adjust tolerance level as needed
 pub const PERCENTAGE: usize = 25; // Adjust image PERCENTAGE to be ok as needed
+pub const EMULATOR_SIZES: (u32, u32) = (860, 644); // tuple of two u32 values : emulator sizes
 
 /// Get all png files from a path
 ///
