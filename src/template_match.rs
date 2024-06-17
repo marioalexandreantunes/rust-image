@@ -1,11 +1,12 @@
 use image::{ImageBuffer, Rgb, Rgba};
-use imageproc::drawing::draw_hollow_rect_mut;
+use imageproc::drawing::{draw_hollow_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, io};
+use ab_glyph::{FontRef, PxScale};
 
 pub const TOLERANCE: u8 = 30; // Adjust tolerance level as needed
 pub const PERCENTAGE: usize = 25; // Adjust image PERCENTAGE to be ok as needed
@@ -283,12 +284,22 @@ pub fn debug_image(results: Vec<Vec<(u32, u32, String)>>, large_image_save: &str
 
         for (_outer_index, inner_vec) in results.iter().enumerate() {
             //println!("Subimage #{} found at positions:", outer_index + 1);
-            for (x, y, _name) in inner_vec {
+            for (x, y, name) in inner_vec {
                 //println!("{} at ({}, {})", name, x, y);
                 let black = Rgb([0u8, 0u8, 0u8]);
                 let x1: i32 = *x as i32;
                 let y1: i32 = *y as i32;
                 let rect = Rect::at(x1, y1).of_size(20, 20);
+                
+                let white = Rgb([255u8, 255u8, 255u8]);
+                let font = FontRef::try_from_slice(include_bytes!("/home/promac/Desktop/Repositories/rust-image/DejaVuSans.ttf")).unwrap();
+                let height = 12.4;
+                let scale = PxScale {
+                    x: height * 2.0,
+                    y: height,
+                };
+
+                draw_text_mut(&mut large_image_save, white, x1 + 10, y1 - 10, scale, &font, name);
                 draw_hollow_rect_mut(&mut large_image_save, rect, black);
             }
         }
