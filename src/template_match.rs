@@ -76,7 +76,7 @@ pub fn get_template_matches(
     larger_image: &str,
     template_path: &str,
     debug: bool,
-    search_zone : Rect
+    search_zone: Rect,
 ) -> Vec<Vec<(u32, u32)>> {
     //check if the paths exist
     let larger_image_path: &Path = Path::new(larger_image);
@@ -90,7 +90,6 @@ pub fn get_template_matches(
 
     // a rectangle to rduce serach zone
     let search_zone = search_zone;
-
 
     // Init the results thread-safe var
     let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::new(Mutex::new(Vec::new()));
@@ -119,8 +118,13 @@ pub fn get_template_matches(
                     image::open(larger_image)
                         .expect("Failed to load image")
                         .to_rgba8();
-                let result: Vec<(u32, u32)> =
-                    template_match(&large_image, &temp, tolerance.clone(), percentage.clone(), search_zone.clone());
+                let result: Vec<(u32, u32)> = template_match(
+                    &large_image,
+                    &temp,
+                    tolerance.clone(),
+                    percentage.clone(),
+                    search_zone.clone(),
+                );
                 let mut results: std::sync::MutexGuard<Vec<Vec<(u32, u32)>>> =
                     results.lock().unwrap();
                 let elapsed_loop: std::time::Duration = start_time_loop.elapsed();
@@ -170,7 +174,7 @@ fn template_match(
     subimage: &ImageBuffer<Rgba<u8>, Vec<u8>>,
     tolerance: u8,
     percentage: usize,
-    search_zone : Rect
+    search_zone: Rect,
 ) -> Vec<(u32, u32)> {
     let (large_width, large_height): (u32, u32) = larger_image.dimensions();
     let (sub_width, sub_height) = subimage.dimensions();
@@ -178,15 +182,26 @@ fn template_match(
     let tolerance_threshold: usize = pixel_count * percentage / 100;
 
     if large_width < search_zone.width() {
-        panic!("Search zone width {} is larger than the larger image width {}", search_zone.width(), large_width);
+        panic!(
+            "Search zone width {} is larger than the larger image width {}",
+            search_zone.width(),
+            large_width
+        );
     }
     if large_height < search_zone.height() {
-        panic!("Search zone height {} is larger than the larger image height {}", search_zone.height(), large_height);
+        panic!(
+            "Search zone height {} is larger than the larger image height {}",
+            search_zone.height(),
+            large_height
+        );
     }
 
     // Create a vector of possible top-left corner positions to be checked
-    let positions: Vec<(u32, u32)> = (search_zone.left() as u32..=search_zone.height() as u32 - sub_height)
-        .flat_map(|y| (search_zone.top() as u32..=search_zone.width() - sub_width).map(move |x| (x, y)))
+    let positions: Vec<(u32, u32)> = (search_zone.left() as u32
+        ..=search_zone.height() as u32 - sub_height)
+        .flat_map(|y| {
+            (search_zone.top() as u32..=search_zone.width() - sub_width).map(move |x| (x, y))
+        })
         .collect();
 
     // Use parallel processing to speed up the search
