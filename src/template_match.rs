@@ -1,14 +1,16 @@
 use image::{ImageBuffer, Rgb, Rgba};
-use imageproc::drawing::draw_hollow_rect_mut;
+use imageproc::drawing::{draw_hollow_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
 use rayon::prelude::*;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, io};
+use ab_glyph::{FontRef, PxScale};
 
 pub const TOLERANCE: u8 = 30; // Adjust tolerance level as needed
 pub const PERCENTAGE: usize = 25; // Adjust image PERCENTAGE to be ok as needed
+pub const EMULATOR_SIZES: (u32, u32) = (860, 644); // tuple of two u32 values : emulator sizes
 
 /// Get all png files from a path
 ///
@@ -65,14 +67,14 @@ fn get_png_files_from_path(
 ///
 /// # Returns
 ///
-/// Vec<Vec<(u32, u32)>> - a vector with vectors with all positions matched.
+/// Vec<Vec<(u32, u32, String)>> - a vector with vectors with x,y + template name used
 ///
 pub fn get_template_matches(
     larger_image: &str,
     template_path: &str,
     debug: bool,
     search_zone: Rect,
-) -> Vec<Vec<(u32, u32)>> {
+) -> Vec<Vec<(u32, u32, String)>> {
     //check if the paths exist
     let larger_image_path: &Path = Path::new(larger_image);
     let template_path1: &Path = Path::new(template_path);
@@ -87,7 +89,7 @@ pub fn get_template_matches(
     let search_zone = search_zone;
 
     // Init the results thread-safe var
-    let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::new(Mutex::new(Vec::new()));
+    let results: Arc<Mutex<Vec<Vec<(u32, u32, String)>>>> = Arc::new(Mutex::new(Vec::new()));
 
     let start_time: Instant = Instant::now();
 
@@ -95,13 +97,16 @@ pub fn get_template_matches(
     rayon::scope(|s: &rayon::Scope| {
         for template in templates.unwrap() {
             let start_time_loop: Instant = Instant::now();
-            let results: Arc<Mutex<Vec<Vec<(u32, u32)>>>> = Arc::clone(&results);
+            let results: Arc<Mutex<Vec<Vec<(u32, u32, String)>>>> = Arc::clone(&results);
             // TODO : get from name the tolerance and percentage
             let mut tolerance: u8 = TOLERANCE;
             let mut percentage: usize = PERCENTAGE;
+            let mut template_name: String = "".to_string();
+
             let name: String = template.0;
             let parts: Vec<&str> = name.split('_').collect();
             if parts.len() >= 3 {
+                template_name = parts[0].to_string();
                 tolerance = parts[1].parse().unwrap_or(TOLERANCE);
                 percentage = parts[2].parse().unwrap_or(PERCENTAGE);
             }
@@ -120,20 +125,25 @@ pub fn get_template_matches(
                     percentage.clone(),
                     search_zone.clone(),
                 );
-                let mut results: std::sync::MutexGuard<Vec<Vec<(u32, u32)>>> =
+                let mut results: std::sync::MutexGuard<Vec<Vec<(u32, u32, String)>>> =
                     results.lock().unwrap();
                 let elapsed_loop: std::time::Duration = start_time_loop.elapsed();
                 if debug {
-                    println!("{} took: {:.2?}", name, elapsed_loop);
+                    println!("{} took: {:.2?}", template_name, elapsed_loop);
                 }
-                results.push(result);
+                // Convert each point to a tuple with a String
+                let points_with_string: Vec<(u32, u32, String)> = result
+                    .into_iter()
+                    .map(|(x, y)| (x, y, template_name.to_string()))
+                    .collect();
+                results.push(points_with_string);
             });
         }
     });
 
     // get the results
-    let debug_results: Vec<Vec<(u32, u32)>> = results.lock().unwrap().clone();
-    let return_results: Vec<Vec<(u32, u32)>> = results.lock().unwrap().clone();
+    let debug_results: Vec<Vec<(u32, u32, String)>> = results.lock().unwrap().clone();
+    let return_results: Vec<Vec<(u32, u32, String)>> = results.lock().unwrap().clone();
 
     let elapsed: std::time::Duration = start_time.elapsed();
 
@@ -191,6 +201,24 @@ fn template_match(
         );
     }
 
+    // check if the search zone is bigger than template image
+    if search_zone.width() < sub_width {
+        panic!(
+            "template width {} is larger than the search zonewidth {}",
+            sub_width,
+            search_zone.width()
+        );
+    }
+    if search_zone.height() < sub_height {
+        panic!(
+            "template height {} is larger than the search zone height {}",
+            sub_height,
+            search_zone.height()
+        );
+    }
+
+    // check if the larger_image is bigger than subimage
+
     // Create a vector of possible top-left corner positions to be checked
     let positions: Vec<(u32, u32)> = (search_zone.left() as u32
         ..=search_zone.height() as u32 - sub_height)
@@ -240,7 +268,7 @@ fn pixels_match_with_tolerance(pixel1: &Rgba<u8>, pixel2: &Rgba<u8>, tolerance: 
 /// * 'results' - Vec<Vec<(u32, u32)>> from parallel template_match.
 /// * 'large_image_save' - path from source image
 ///
-pub fn debug_image(results: Vec<Vec<(u32, u32)>>, large_image_save: &str) {
+pub fn debug_image(results: Vec<Vec<(u32, u32, String)>>, large_image_save: &str) {
     if results.is_empty() {
         println!("Subimage not found in larger image.");
     } else {
@@ -251,12 +279,22 @@ pub fn debug_image(results: Vec<Vec<(u32, u32)>>, large_image_save: &str) {
 
         for (_outer_index, inner_vec) in results.iter().enumerate() {
             //println!("Subimage #{} found at positions:", outer_index + 1);
-            for (x, y) in inner_vec {
-                //println!("({}, {})", x, y);
+            for (x, y, name) in inner_vec {
+                //println!("{} at ({}, {})", name, x, y);
                 let black = Rgb([0u8, 0u8, 0u8]);
                 let x1: i32 = *x as i32;
                 let y1: i32 = *y as i32;
                 let rect = Rect::at(x1, y1).of_size(20, 20);
+                
+                let white = Rgb([255u8, 255u8, 255u8]);
+                let font = FontRef::try_from_slice(include_bytes!("/home/promac/Desktop/Repositories/rust-image/DejaVuSans.ttf")).unwrap();
+                let height = 12.4;
+                let scale = PxScale {
+                    x: height * 2.0,
+                    y: height,
+                };
+
+                draw_text_mut(&mut large_image_save, white, x1 + 10, y1 - 10, scale, &font, name);
                 draw_hollow_rect_mut(&mut large_image_save, rect, black);
             }
         }
